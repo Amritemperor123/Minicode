@@ -1,0 +1,102 @@
+{
+  "name": "minicode",
+  "displayName": "MiniCode",
+  "description": "Autonomous AI Coding Agent VS Code Extension",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onCommand:minicode.setApiKey",
+    "onCommand:minicode.clearApiKey",
+    "onView:minicode-chat"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "minicode.setApiKey",
+        "title": "MiniCode: Set API Key (SecretStorage)"
+      },
+      {
+        "command": "minicode.clearApiKey",
+        "title": "MiniCode: Clear API Key"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "minicode-view-container",
+          "title": "MiniCode",
+          "icon": "images/sandwich.svg"
+        }
+      ]
+    },
+    "views": {
+      "minicode-view-container": [
+        {
+          "icon": "images/sandwich.svg",
+          "id": "minicode-chat",
+          "name": "MiniCode Chat",
+          "type": "webview"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "MiniCode",
+      "properties": {
+        "minicode.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:1234",
+          "description": "Base URL for the OpenAI-compatible LLM server."
+        },
+        "minicode.chatModelId": {
+          "type": "string",
+          "default": "",
+          "description": "Optional model ID for chat completions. If empty, the first available server model is used."
+        },
+        "minicode.requestTimeoutMs": {
+          "type": "number",
+          "default": 120000,
+          "minimum": 1000,
+          "description": "HTTP request timeout in milliseconds."
+        },
+        "minicode.activeFileContextMaxChars": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Maximum active editor file characters sent as context."
+        },
+        "minicode.maxAgentSteps": {
+          "type": "number",
+          "default": 25,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Maximum steps limit for the autonomous agent tool-calling loop."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.105.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
+    "eslint": "^9.36.0",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
