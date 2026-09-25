@@ -14,9 +14,60 @@ const activeFile = document.getElementById('active-file');
 let pending = false;
 let currentBotBubble = null;
 let currentBotText = '';
+let loadingIndicator = null;
 
 function formatTime(date = new Date()) {
 	return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function createCopilotLoadingElement(text = 'Generating response', isInline = false) {
+	const container = document.createElement('div');
+	container.className = `copilot-loading-indicator${isInline ? ' inline-loading' : ''}`;
+
+	const sparkle = document.createElement('span');
+	sparkle.className = 'copilot-sparkle';
+	sparkle.innerHTML = `<svg class="copilot-sparkle-icon" viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+		<path d="M7.5 0L9.3 5.7L15 7.5L9.3 9.3L7.5 15L5.7 9.3L0 7.5L5.7 5.7L7.5 0Z"/>
+	</svg>`;
+
+	const label = document.createElement('span');
+	label.className = 'copilot-loading-text';
+	label.textContent = text;
+
+	const dots = document.createElement('div');
+	dots.className = 'copilot-loading-dots';
+	dots.innerHTML = '<span></span><span></span><span></span>';
+
+	container.appendChild(sparkle);
+	container.appendChild(label);
+	container.appendChild(dots);
+	return container;
+}
+
+function showLoadingIndicator(text = 'Generating response') {
+	if (loadingIndicator) {
+		const textEl = loadingIndicator.querySelector('.copilot-loading-text');
+		if (textEl) {
+			textEl.textContent = text;
+		}
+		return;
+	}
+	const wrap = document.createElement('div');
+	wrap.className = 'message bot loading-message';
+
+	const container = createCopilotLoadingElement(text, false);
+	wrap.appendChild(container);
+
+	messageArea.appendChild(wrap);
+	messageArea.scrollTop = messageArea.scrollHeight;
+	loadingIndicator = wrap;
+}
+
+function hideLoadingIndicator() {
+	if (loadingIndicator) {
+		loadingIndicator.remove();
+		loadingIndicator = null;
+	}
 }
 
 function addMessage(text, sender = 'bot') {
@@ -39,13 +90,16 @@ function addMessage(text, sender = 'bot') {
 }
 
 function startBotStream() {
+	hideLoadingIndicator();
 	currentBotText = '';
 	const wrap = document.createElement('div');
 	wrap.className = 'message bot';
 
 	const bubble = document.createElement('div');
-	bubble.className = 'bubble streaming-bubble';
-	bubble.textContent = '';
+	bubble.className = 'bubble streaming-bubble is-streaming';
+
+	const inlineLoading = createCopilotLoadingElement('Generating response', true);
+	bubble.appendChild(inlineLoading);
 
 	const meta = document.createElement('div');
 	meta.className = 'meta';
@@ -60,8 +114,12 @@ function startBotStream() {
 }
 
 function appendStreamChunk(chunk) {
+	hideLoadingIndicator();
 	if (!currentBotBubble) {
 		startBotStream();
+	}
+	if (currentBotText === '') {
+		currentBotBubble.innerHTML = '';
 	}
 	currentBotText += chunk;
 	currentBotBubble.textContent = currentBotText;
@@ -208,7 +266,15 @@ function setPending(isPending) {
 	messageInput.disabled = pending;
 	sendButton.disabled = pending;
 	stopButton.classList.toggle('hidden', !pending);
-	if (!pending) {
+	if (pending) {
+		if (!currentBotBubble) {
+			showLoadingIndicator('Generating response');
+		}
+	} else {
+		hideLoadingIndicator();
+		if (currentBotBubble) {
+			currentBotBubble.classList.remove('is-streaming');
+		}
 		currentBotBubble = null;
 		currentBotText = '';
 	}
@@ -280,33 +346,55 @@ window.addEventListener('message', (event) => {
 			setState(message);
 			break;
 		case 'agentStepStart':
+			hideLoadingIndicator();
 			addMessage(`--- Step ${message.step} ---`, 'bot');
+			if (pending) {
+				showLoadingIndicator('Generating response');
+			}
 			break;
 		case 'agentToolCallStart':
+			hideLoadingIndicator();
+			if (currentBotBubble) {
+				currentBotBubble.classList.remove('is-streaming');
+				currentBotBubble = null;
+			}
 			addToolBadge(message.toolName, message.args);
+			if (pending) {
+				showLoadingIndicator('Running tool...');
+			}
 			break;
 		case 'agentToolCallResult':
+			hideLoadingIndicator();
 			addToolResult(message.toolName, message.result, message.isError);
+			if (pending) {
+				showLoadingIndicator('Generating response');
+			}
 			break;
 		case 'agentFinish':
+			hideLoadingIndicator();
 			if (message.summary && message.summary !== 'Task completed.') {
 				addMessage(`🏁 Agent Finished: ${message.summary}`, 'bot');
 			}
 			setPending(false);
 			break;
 		case 'agentError':
+			hideLoadingIndicator();
 			addMessage(`❌ Agent Error: ${message.error}`, 'bot');
 			setPending(false);
 			break;
 		case 'requestCommandPermission':
+			hideLoadingIndicator();
 			addCommandPermissionCard(message.id, message.commandText);
 			break;
 		case 'requestDiffPreview':
+			hideLoadingIndicator();
 			addDiffPreviewCard(message.id, message.filePath, message.oldString, message.newString);
 			break;
 		case 'clearMessages':
+			hideLoadingIndicator();
 			messageArea.innerHTML = '';
 			currentBotBubble = null;
+			currentBotText = '';
 			break;
 		default:
 			break;
